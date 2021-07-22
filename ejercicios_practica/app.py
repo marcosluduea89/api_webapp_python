@@ -85,7 +85,7 @@ def api():
         result += "<h3>[GET] /personas --> mostrar la tabla de personas (el HTML)</h3>"
         result += "<h3>[GET] /registro --> mostrar el HTML con el formulario de registro de persona</h3>"
         result += "<h3>[POST] /registro --> ingresar nuevo registro de pulsaciones por JSON</h3>"
-        result += "<h3>[GET] /comparativa --> mostrar un gráfico que compare cuantas personas hay de cada nacionalidad"
+        result += "<h3>[GET] /comparativa /nacionalidad --> mostrar un gráfico que compare cuantas personas hay de cada nacionalidad"
         
         return(result)
     except:
@@ -109,21 +109,26 @@ def personas():
         # Alumno: Implemente el manejo
         # del limit y offset para pasarle
         # como parámetros a report
-        data = persona.report()
-        
-        result = '''<h3>Alumno: Implementar la llamada
-                    al HTML tabla.html
-                    con render_template, recuerde pasar
-                    data como parámetro</h3>'''
-        # Sacar esta linea cuando haya implementado el return
-        # con render template
-        return result 
+        limit_str = str(request.args.get('limit'))
+        offset_str = str(request.args.get('offset'))
+
+        limit = 0
+        offset = 0
+
+        if(limit_str is not None) and (limit_str.isdigit()):
+            limit = int(limit_str)
+
+        if(offset_str is not None) and (offset_str.isdigit()):
+            offset = int(offset_str)
+
+        data = persona.report(limit=limit, offset=offset)
+        return render_template('tabla.html', data=data)
     except:
         return jsonify({'trace': traceback.format_exc()})
 
 
-@app.route("/comparativa")
-def comparativa():
+@app.route("/comparativa/<nacionalidad>/")
+def comparativa(nacionalidad):
     try:
         # Mostrar todos los registros en un gráfico
         result = '''<h3>Implementar una función en persona.py
@@ -138,7 +143,21 @@ def comparativa():
                     como parámetro estático o dinámico que indique la nacionalidad
                     que se desea estudiar sus edades ingresadas (filtrar las edades
                     por la nacionalidad ingresada)</h3>'''
-        return (result)
+
+        id, edad = persona.age_report(nacionalidad)
+
+        fig, ax = plt.subplots(figsize=(16, 9))
+        ax.plot(id, edad)
+        ax.set_title(f'Comparativa de las Edades y IDs segun la nacionalidad {nacionalidad}')
+        ax.set_ylabel("ID")
+        ax.set_xlabel("Edad")
+
+        
+        output = io.BytesIO()
+        FigureCanvas(fig).print_png(output)
+        plt.close(fig) 
+
+        return Response(output.getvalue(), mimetype='image/png')
     except:
         return jsonify({'trace': traceback.format_exc()})
 
@@ -155,14 +174,14 @@ def registro():
         try:
             # Alumno: Implemente
             # Obtener del HTTP POST JSON el nombre y los pulsos
-            # name = ...
-            # age = ...
-            # nationality = ...
+            name = str(request.form.get('name'))
+            age = str( request.form.get('age'))
+            nationality = str(request.form.get('nationality'))
 
-            # persona.insert(name, int(age), nationality)
+            persona.insert(name, int(age), nationality)
+            return redirect(url_for('personas'))
 
             # Como respuesta al POST devolvemos la tabla de valores
-            return redirect(url_for('personas'))
         except:
             return jsonify({'trace': traceback.format_exc()})
     
